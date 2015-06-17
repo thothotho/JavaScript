@@ -1,0 +1,209 @@
+(function() {
+var ready = {
+    colum: 10,
+    row: 15,
+    sizewidth: 32,
+    sizeheight: 32,
+    bulletW: 4, //bullet width
+    bulletH: 4, //bullet height
+    bs: 20, //bulletSpeed
+    check: 3
+};
+var status = {};
+var ImageFile = ["rocket", "bullet", "rock1"];
+var images = {};
+var shotButton;
+var draw = function() {
+    status.bgcgc.drawImage(images["map"],0,0);
+    status.getcanvascontext.drawImage(status.bgcgc.canvas, 0, 0);
+    if(status.state == "gaming") 
+    {
+      status.getcanvascontext.drawImage(images["rocket"], status.x - (ready.sizewidth / 2) | 0, status.y - (ready.sizeheight / 2) | 0);
+    }
+    else if(status.state == "dying") 
+    {
+      status.getcanvascontext.drawImage(images["bomb" + status.dying], status.x - (ready.sizewidth / 2) | 0, status.y - (ready.sizeheight / 2) | 0);
+      if(++status.dying > 10) 
+      {
+        status.state = "gameover";
+      }
+    }
+};
+
+var createBullet = function(dx, dy) {
+    return {x: status.x, y: status.y, dx: ready.bs * dx, dy: ready.bs * dy};
+};
+var createRock = function() {
+    var level = (status.frameCount / 500) | 0;
+    var x = status.x + Math.random() * 50;
+    var fy = (level >= 4)? ((Math.random() * 2) | 0) * ready.height: 0;
+    var y = status.y + Math.random() * 50;
+    var fx = Math.random() * ready.width;
+    var hp = 1;
+    return {x: fx, y: fy, dx:0 , dy: 3, hp: hp, score: hp * 500, state: "rock1"}; //changing speed of monster
+};
+
+var resetTrigger = function() {
+    setTimeout(resetTrigger, 100 / 3);
+    if(status.state == "loading") {
+        return;
+    }
+    status.frameCount++;
+    status.currentTop--;
+    status.currentTop = status.currentTop || (ready.height + ready.sizeheight);
+    if(status.currentTop % ready.sizeheight == 0) {
+        var line = status.currentTop / ready.sizeheight - 1;
+        for(var x = 0; x < ready.colum; x++) {            
+        }
+    }
+    draw();
+    
+    if(status.state == "gaming" && status.frameCount % ready.check == 0) {
+        status.bullets[status.frameCount] = createBullet(0, -1); // setting key here
+    }
+    if(status.rockCount < 5 + status.frameCount / 500) {
+        status.rocks[status.frameCount + "r"] = createRock();
+        status.rockCount++;
+    }
+    
+    for(var key in status.bullets) {
+        var bullet = status.bullets[key];
+        bullet.x += bullet.dx;
+        bullet.y += bullet.dy;
+        if(bullet.x < 0 || bullet.x > ready.width || bullet.y < 0 || bullet.y > ready.height) {
+            delete status.bullets[key];
+        } else {
+            status.getcanvascontext.drawImage(images["bullet"], bullet.x - ((ready.bulletW / 2) | 0), bullet.y - ((ready.bulletH / 2) | 0));
+            
+            for(var rkey in status.rocks) {
+                var rock = status.rocks[rkey];
+                if(Math.abs(bullet.x - rock.x) < ready.sizewidth / 2 && Math.abs(bullet.y - rock.y) < ready.sizeheight / 2) {
+                    if(rock.hp) {
+                        delete status.bullets[key];
+
+                        if(--rock.hp == 0) {
+                            status.score += rock.score;
+                            status.scoreElement.innerHTML = "000000000".substring(0, 9 - (status.score + "").length) + status.score;
+                            rock.dx = rock.dy = 0;
+                            rock.state = "bomb1";
+                        } 
+                    }
+                }
+            }
+        }
+    }
+
+    for(var key in status.rocks) {
+        var rock = status.rocks[key];
+        rock.x += rock.dx;
+        rock.y += rock.dy;
+        if(rock.x < 0 || rock.x > ready.width || rock.y < 0 || rock.y > ready.height) {
+            delete status.rocks[key];
+            status.rockCount--;
+        } else {
+            status.getcanvascontext.drawImage(images[rock.state], rock.x - ((ready.sizewidth / 2) | 0), rock.y - ((ready.sizeheight / 2) | 0));
+            if(rock.hp == 0) {
+
+                var next = (+rock.state.substring(4, 6)) + 1;
+                if(next > 10) {
+                    delete status.rocks[key];
+                    status.rockCount--;
+
+                } else {
+                    rock.state = "bomb" + next;
+                }
+
+
+            } else {
+
+                if(status.state == "gaming" && Math.abs(status.x - rock.x) < ready.sizewidth * 0.7 && Math.abs(status.y - rock.y) < ready.sizeheight * 0.7) {
+                    status.state = "dying";
+                    status.dying = 1;
+                }
+            }
+        }
+    }
+};
+
+var initialize = function() {
+        var canvas = document.createElement("canvas");
+        canvas.width = ready.sizewidth;
+        canvas.height = ready.sizeheight;
+        var getcanvascontext = canvas.getContext("2d");
+        getcanvascontext.drawImage(images["rock1"], 0, 0);
+        images["rock1"] = canvas;
+
+    status.currentTop = ready.height + ready.sizeheight;
+    status.x = (ready.width / 2) | 0;
+    status.y = (ready.height * 3 / 4) | 0;
+    status.frameCount = 0;
+    status.rockCount = 0;
+    status.score = 0;
+    status.bullets = {};
+    status.rocks = {};
+    status.scoreElement.innerHTML = "000000000";
+    status.state = "gaming";
+    setTimeout(function() { window.scrollTo(0, 0); }, 250);
+
+};
+window.onload = function() {
+    ready.width = ready.colum * ready.sizewidth;
+    ready.height = ready.row * ready.sizeheight;
+    status.scoreElement = document.getElementsByTagName("div")[0];
+    status.scoreElement.style.width = ready.width + "px";
+    var canvas = document.getElementById("canvas");
+    canvas.width = ready.width;
+    canvas.height = ready.height;
+    status.getcanvascontext = canvas.getContext("2d");
+    var backgroundcanvas = document.createElement("canvas");
+    backgroundcanvas.width = ready.width;
+    backgroundcanvas.height = ready.height + ready.sizeheight;
+    status.bgcgc = backgroundcanvas.getContext("2d");
+    ImageFile.push("map");
+    for(var i = 0; i < 10; i++) 
+    {
+      ImageFile.push("bomb" + (i + 1));
+    }
+
+    var checkLoad = function() {
+        status.loadedCount++;
+        if(status.loadedCount == ImageFile.length) {
+            initialize();
+        }
+    };
+    status.loadedCount = 0;
+
+    for(var j = 0; j < ImageFile.length; j++) {
+        var image = document.createElement("img");
+        image.onload = checkLoad;
+        images[ImageFile[j]] = image;
+        image.src = "img/" + ImageFile[j] + ".png";
+    }
+    status.state = "loading";
+    resetTrigger();
+
+
+    document.body.onmousedown = document.body.ontouchstart = function(e) {
+        e.preventDefault();
+        e = (e.touches && e.touches[0]) || e;
+        status.lastX = e.pageX;
+        status.lastY = e.pageY;
+        if(status.state == "gameover") {
+            initialize();
+        }
+    };
+
+    document.body.onmousemove = document.body.ontouchmove = function(e) {
+        e = (e.touches && e.touches[0]) || e;
+        if(status.state == "gaming" && status.lastX != null) {
+            status.x += (e.pageX - status.lastX) * 2.5;
+            status.y += (e.pageY - status.lastY) * 3;
+            status.x = ((status.x < 0)? 0: ((status.x > ready.width)? ready.width: status.x)) | 0;
+            status.y = ((status.y < 0)? 0: ((status.y > ready.height)? ready.height: status.y)) | 0;
+        }
+        status.lastX = e.pageX;
+        status.lastY = e.pageY;
+    };
+};
+
+})();
